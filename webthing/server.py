@@ -8,6 +8,7 @@ import network
 
 from errors import PropertyError
 from utils import get_addresses
+from thing import Thing
 
 log = logging.getLogger(__name__)
 
@@ -44,73 +45,10 @@ def print_exc(func):
             sys.print_exception(err)
     return wrapper
 
-
-class SingleThing:
-    """A container for a single thing."""
-
-    def __init__(self, thing):
-        """
-        Initialize the container.
-
-        thing -- the thing to store
-        """
-        self.thing = thing
-
-    def get_thing(self, _):
-        """Get the thing at the given index."""
-        return self.thing
-
-    def get_things(self):
-        """Get the list of things."""
-        return [self.thing]
-
-    def get_name(self):
-        """Get the mDNS server name."""
-        return self.thing.title
-
-
-class MultipleThings:
-    """A container for multiple things."""
-
-    def __init__(self, things, name):
-        """
-        Initialize the container.
-
-        things -- the things to store
-        name -- the mDNS server name
-        """
-        self.things = things
-        self.name = name
-
-    def get_thing(self, idx):
-        """
-        Get the thing at the given index.
-
-        idx -- the index
-        """
-        try:
-            idx = int(idx)
-        except ValueError:
-            return None
-
-        if idx < 0 or idx >= len(self.things):
-            return None
-
-        return self.things[idx]
-
-    def get_things(self):
-        """Get the list of things."""
-        return self.things
-
-    def get_name(self):
-        """Get the mDNS server name."""
-        return self.name
-
-
 class WebThingServer:
     """Server to represent a Web Thing over HTTP."""
 
-    def __init__(self, things, port=80, hostname=None, ssl_options=None,
+    def __init__(self, thing:Thing, port:int=80, hostname:str=None, ssl_options=None,
                  additional_routes=None):
         """
         Initialize the WebThingServer.
@@ -126,8 +64,8 @@ class WebThingServer:
         """
         self.ssl_suffix = '' if ssl_options is None else 's'
 
-        self.things = things
-        self.name = things.get_name()
+        self.thing = thing
+        self.name = thing.title
         self.port = port
         self.hostname = hostname
 
@@ -156,72 +94,34 @@ class WebThingServer:
                 '{}:{}'.format(self.hostname, self.port),
             ])
 
-        if isinstance(self.things, MultipleThings):
-            log.info('Registering multiple things')
-            for idx, thing in enumerate(self.things.get_things()):
-                thing.set_href_prefix('/{}'.format(idx))
-
-            handlers = [
-                (
-                    '/.*',
-                    'OPTIONS',
-                    self.optionsHandler
-                ),
-                (
-                    '/',
-                    'GET',
-                    self.thingsGetHandler
-                ),
-                (
-                    '/<thing_id>',
-                    'GET',
-                    self.thingGetHandler
-                ),
-                (
-                    '/<thing_id>/properties',
-                    'GET',
-                    self.propertiesGetHandler
-                ),
-                (
-                    '/<thing_id>/properties/<property_name>',
-                    'GET',
-                    self.propertyGetHandler
-                ),
-                (
-                    '/<thing_id>/properties/<property_name>',
-                    'PUT',
-                    self.propertyPutHandler
-                ),
-            ]
-        else:
-            log.info('Registering a single thing')
-            handlers = [
-                (
-                    '/.*',
-                    'OPTIONS',
-                    self.optionsHandler
-                ),
-                (
-                    '/',
-                    'GET',
-                    self.thingGetHandler
-                ),
-                (
-                    '/properties',
-                    'GET',
-                    self.propertiesGetHandler
-                ),
-                (
-                    '/properties/<property_name>',
-                    'GET',
-                    self.propertyGetHandler
-                ),
-                (
-                    '/properties/<property_name>',
-                    'PUT',
-                    self.propertyPutHandler
-                ),
-            ]
+        log.info('Registering a single thing')
+        handlers = [
+            (
+                '/.*',
+                'OPTIONS',
+                self.optionsHandler
+            ),
+            (
+                '/',
+                'GET',
+                self.thingGetHandler
+            ),
+            (
+                '/properties',
+                'GET',
+                self.propertiesGetHandler
+            ),
+            (
+                '/properties/<property_name>',
+                'GET',
+                self.propertyGetHandler
+            ),
+            (
+                '/properties/<property_name>',
+                'PUT',
+                self.propertyPutHandler
+            ),
+        ]
 
         if isinstance(additional_routes, list):
             handlers = additional_routes + handlers
@@ -244,7 +144,7 @@ class WebThingServer:
 
         mdns = network.mDNS()
         mdns.start(self.system_hostname, 'MicroPython with mDNS')
-        mdns.addService('_webthing', '_tcp', 80, self.system_hostname,
+        mdns.addService('_labthing', '_tcp', 80, self.system_hostname,
                         {
                           'board': 'ESP32',
                           'path': '/',
@@ -254,18 +154,9 @@ class WebThingServer:
         """Stop listening."""
         self.server.Stop()
 
-    def getThing(self, routeArgs):
-        """Get the thing ID based on the route."""
-        if not routeArgs or 'thing_id' not in routeArgs:
-            thing_id = None
-        else:
-            thing_id = routeArgs['thing_id']
-
-        return self.things.get_thing(thing_id)
-
     def getProperty(self, routeArgs):
         """Get the property name based on the route."""
-        thing = self.getThing(routeArgs)
+        thing = self.thing
         if thing:
             property_name = routeArgs['property_name']
             if thing.has_property(property_name):
@@ -294,52 +185,13 @@ class WebThingServer:
         httpResponse.WriteResponse(204, _CORS_HEADERS, None, None, None)
 
     @print_exc
-    def thingsGetHandler(self, httpClient, httpResponse):
-        """Handle a request to / when the server manages multiple things."""
-        if not self.validateHost(httpClient.GetRequestHeaders()):
-            httpResponse.WriteResponseError(403)
-            return
-
-        headers = httpClient.GetRequestHeaders()
-        base_href = 'http{}://{}'.format(
-            self.ssl_suffix,
-            self.getHeader(headers, 'host', '')
-        )
-        ws_href = 'ws{}://{}'.format(
-            self.ssl_suffix,
-            self.getHeader(headers, 'host', '')
-        )
-
-        descriptions = []
-        for thing in self.things.get_things():
-            description = thing.as_thing_description()
-            description['links'].append({
-                'rel': 'alternate',
-                'href': '{}{}'.format(ws_href, thing.get_href()),
-            })
-            description['href'] = thing.get_href()
-            description['base'] = '{}{}'.format(base_href, thing.get_href())
-            description['securityDefinitions'] = {
-                'nosec_sc': {
-                    'scheme': 'nosec',
-                },
-            }
-            description['security'] = 'nosec_sc'
-            descriptions.append(description)
-
-        httpResponse.WriteResponseJSONOk(
-            obj=descriptions,
-            headers=_CORS_HEADERS,
-        )
-
-    @print_exc
     def thingGetHandler(self, httpClient, httpResponse, routeArgs=None):
         """Handle a GET request for an individual thing."""
         if not self.validateHost(httpClient.GetRequestHeaders()):
             httpResponse.WriteResponseError(403)
             return
 
-        thing = self.getThing(routeArgs)
+        thing = self.thing
         if thing is None:
             httpResponse.WriteResponseNotFound()
             return
@@ -375,7 +227,7 @@ class WebThingServer:
     @print_exc
     def propertiesGetHandler(self, httpClient, httpResponse, routeArgs=None):
         """Handle a GET request for a property."""
-        thing = self.getThing(routeArgs)
+        thing = self.thing
         if thing is None:
             httpResponse.WriteResponseNotFound()
             return
@@ -436,14 +288,8 @@ class WebThingServer:
         webSocket.RecvTextCallback = self._recvTextCallback
         webSocket.RecvBinaryCallback = self._recvBinaryCallback
         webSocket.ClosedCallback = self._closedCallback
-        things = self.things.get_things()
-        if len(things) == 1:
-            thing_id = 0
-        else:
-            thing_id = int(reqPath.split('/')[1])
-        thing = things[thing_id]
-        webSocket.thing = thing
-        thing.add_subscriber(webSocket)
+        webSocket.thing = self.thing
+        self.thing.add_subscriber(webSocket)
 
     @print_exc
     def _recvTextCallback(self, webSocket, msg):
