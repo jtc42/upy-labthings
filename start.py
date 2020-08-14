@@ -2,7 +2,7 @@ import sys
 import logging
 import connect
 
-logging.basicConfig(logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
 
 sys.path.append("/flash/upy")
@@ -27,14 +27,6 @@ def single():
 
     print("Starting single_thing server...")
     single_thing.run_server()
-
-
-def multi():
-    print("importing multiple_things...")
-    import multiple_things
-
-    print("Starting multiple_things server...")
-    multiple_things.run_server()
 
 
 def thing():
