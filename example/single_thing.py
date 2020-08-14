@@ -1,5 +1,4 @@
 from action import ActionObject
-from event import Event
 from property import Property
 from thing import Thing
 from value import Value
@@ -11,21 +10,6 @@ import uuid
 log = logging.getLogger(__name__)
 
 
-class OverheatedEvent(Event):
-    def __init__(self, thing, data):
-        Event.__init__(self, thing, "overheated", data=data)
-
-
-class FadeActionObject(ActionObject):
-    def __init__(self, thing, input_):
-        ActionObject.__init__(self, uuid.uuid4().hex, thing, "fade", input_=input_)
-
-    def invokeaction(self, args):
-        time.sleep(args["duration"] / 1000)
-        self.thing.set_property("brightness", args["brightness"])
-        self.thing.add_event(OverheatedEvent(self.thing, 102))
-
-
 def make_thing():
     thing = Thing(
         "urn:dev:ops:my-lamp-1234",
@@ -34,41 +18,47 @@ def make_thing():
         "A web connected lamp",
     )
 
-    thing.add_property(
-        Property(
-            thing,
-            "on",
-            writeproperty=lambda v: print(v),
-            initial_value=True,
-            metadata={
-                "@type": "OnOffProperty",
-                "title": "On/Off",
-                "type": "boolean",
-                "description": "Whether the lamp is turned on",
-            },
-        )
-    )
-    thing.add_property(
-        Property(
-            thing,
-            "brightness",
-            writeproperty=lambda v: print(v),
-            initial_value=50,
-            metadata={
-                "@type": "BrightnessProperty",
-                "title": "Brightness",
-                "type": "integer",
-                "description": "The level of light from 0-100",
-                "minimum": 0,
-                "maximum": 100,
-                "unit": "percent",
-            },
-        )
+    on_property = Property(
+        thing,
+        "on",
+        writeproperty=lambda v: print(v),
+        initial_value=True,
+        metadata={
+            "@type": "OnOffProperty",
+            "title": "On/Off",
+            "type": "boolean",
+            "description": "Whether the lamp is turned on",
+        },
     )
 
-    thing.add_available_action(
+    brightness_property = Property(
+        thing,
+        "brightness",
+        writeproperty=lambda v: print(v),
+        initial_value=50,
+        metadata={
+            "@type": "BrightnessProperty",
+            "title": "Brightness",
+            "type": "integer",
+            "description": "The level of light from 0-100",
+            "minimum": 0,
+            "maximum": 100,
+            "unit": "percent",
+        },
+    )
+
+    thing.add_property(on_property)
+    thing.add_property(brightness_property)
+
+    def fade_function(args):
+        time.sleep(args["duration"] / 1000)
+        brightness_property.set_value(args["brightness"])
+
+    fade_action = Action(
+        thing,
         "fade",
-        {
+        invokeaction=fade_function,
+        metadata={
             "title": "Fade",
             "description": "Fade the lamp to a given level",
             "input": {
@@ -89,17 +79,9 @@ def make_thing():
                 },
             },
         },
-        FadeActionObject,
     )
 
-    thing.add_available_event(
-        "overheated",
-        {
-            "description": "The lamp has exceeded its safe operating temperature",
-            "type": "number",
-            "unit": "degree celsius",
-        },
-    )
+    thing.add_action(fade_action)
 
     return thing
 
