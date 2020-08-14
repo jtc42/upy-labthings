@@ -18,8 +18,11 @@ class Thing:
         if not isinstance(type_, list):
             type_ = [type_]
 
-        self.id = id_
-        self.context = "https://iot.mozilla.org/schemas"
+        self.id = "urn:wot:lab:" + id_
+        self.context = [
+            "https://www.w3.org/2019/wot/td/v1",
+            "https://iot.mozilla.org/schemas/",
+        ]
         self.type = type_
         self.title = title
         self.description = description
@@ -327,7 +330,7 @@ class Thing:
 
         Returns the action that was created.
         """
-        if action_name not in self.available_actions:
+        if action_name not in self.actions:
             return None
 
         action = self.actions[action_name]
@@ -367,8 +370,7 @@ class Thing:
         action -- Action instance
         """
 
-        self.available_actions[action.name] = action
-        self.actions[name] = []
+        self.actions[action.name] = action
 
     def add_subscriber(self, ws):
         """
