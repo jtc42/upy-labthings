@@ -14,7 +14,7 @@ class Led(Thing):
     def __init__(self, ledPin, buttonPin):
         Thing.__init__(
             self,
-            "urn:dev:ops:blue-led-1234",
+            "dev:blue-led-1234",
             "Blue LED",
             ["OnOffSwitch", "Light"],
             "Blue LED on SparkFun ESP32 Thing",
