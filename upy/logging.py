@@ -19,7 +19,6 @@ _stream = sys.stderr
 
 
 class Logger:
-
     def __init__(self, name):
         self.level = NOTSET
         self.name = name
@@ -31,8 +30,10 @@ class Logger:
 
     def log(self, level, msg, *args):
         if level >= (self.level or _level):
-            print(("%s:%s:" + msg) %
-                  ((self._level_str(level), self.name) + args), file=_stream)
+            print(
+                ("%s:%s:" + msg) % ((self._level_str(level), self.name) + args),
+                file=_stream,
+            )
 
     def debug(self, msg, *args):
         self.log(DEBUG, msg, *args)

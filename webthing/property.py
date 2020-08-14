@@ -21,13 +21,13 @@ class Property:
         self.thing = thing
         self.name = name
         self.value = value
-        self.href_prefix = ''
-        self.href = '/properties/{}'.format(self.name)
+        self.href_prefix = ""
+        self.href = "/properties/{}".format(self.name)
         self.metadata = metadata if metadata is not None else {}
 
         # Add the property change observer to notify the Thing about a property
         # change.
-        self.value.on('update', lambda _: self.thing.property_notify(self))
+        self.value.on("update", lambda _: self.thing.property_notify(self))
 
     def validate_value(self, value):
         """
@@ -35,45 +35,50 @@ class Property:
 
         value -- New value
         """
-        if 'type' in self.metadata:
-            t = self.metadata['type']
+        if "type" in self.metadata:
+            t = self.metadata["type"]
 
-            if t == 'null':
+            if t == "null":
                 if t is not None:
-                    raise PropertyError('Value must be null')
-            elif t == 'boolean':
+                    raise PropertyError("Value must be null")
+            elif t == "boolean":
                 if type(value) is not bool:
-                    raise PropertyError('Value must be a boolean')
-            elif t == 'object':
+                    raise PropertyError("Value must be a boolean")
+            elif t == "object":
                 if type(value) is not dict:
-                    raise PropertyError('Value must be an object')
-            elif t == 'array':
+                    raise PropertyError("Value must be an object")
+            elif t == "array":
                 if type(value) is not list:
-                    raise PropertyError('Value must be an array')
-            elif t == 'number':
+                    raise PropertyError("Value must be an array")
+            elif t == "number":
                 if type(value) not in [float, int]:
-                    raise PropertyError('Value must be a number')
-            elif t == 'integer':
+                    raise PropertyError("Value must be a number")
+            elif t == "integer":
                 if type(value) is not int:
-                    raise PropertyError('Value must be an integer')
-            elif t == 'string':
+                    raise PropertyError("Value must be an integer")
+            elif t == "string":
                 if type(value) is not str:
-                    raise PropertyError('Value must be a string')
+                    raise PropertyError("Value must be a string")
 
-        if 'readOnly' in self.metadata and self.metadata['readOnly']:
-            raise PropertyError('Read-only property')
+        if "readOnly" in self.metadata and self.metadata["readOnly"]:
+            raise PropertyError("Read-only property")
 
-        if 'minimum' in self.metadata and value < self.metadata['minimum']:
-            raise PropertyError('Value less than minimum: {}'
-                                .format(self.metadata['minimum']))
+        if "minimum" in self.metadata and value < self.metadata["minimum"]:
+            raise PropertyError(
+                "Value less than minimum: {}".format(self.metadata["minimum"])
+            )
 
-        if 'maximum' in self.metadata and value > self.metadata['maximum']:
-            raise PropertyError('Value greater than maximum: {}'
-                                .format(self.metadata['maximum']))
+        if "maximum" in self.metadata and value > self.metadata["maximum"]:
+            raise PropertyError(
+                "Value greater than maximum: {}".format(self.metadata["maximum"])
+            )
 
-        if 'enum' in self.metadata and len(self.metadata['enum']) > 0 and \
-                value not in self.metadata['enum']:
-            raise PropertyError('Invalid enum value')
+        if (
+            "enum" in self.metadata
+            and len(self.metadata["enum"]) > 0
+            and value not in self.metadata["enum"]
+        ):
+            raise PropertyError("Invalid enum value")
 
     def as_property_description(self):
         """
@@ -83,14 +88,11 @@ class Property:
         """
         description = deepcopy(self.metadata)
 
-        if 'links' not in description:
-            description['links'] = []
+        if "links" not in description:
+            description["links"] = []
 
-        description['links'].append(
-            {
-                'rel': 'property',
-                'href': self.href_prefix + self.href,
-            }
+        description["links"].append(
+            {"rel": "property", "href": self.href_prefix + self.href,}
         )
         return description
 

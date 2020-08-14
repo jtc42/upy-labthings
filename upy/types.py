@@ -9,11 +9,12 @@ import sys
 # "__iter__" and "__next__" attributes instead.
 
 
-def _f(): pass
+def _f():
+    pass
 
 
 FunctionType = type(_f)
-LambdaType = type(lambda: None)         # Same as FunctionType
+LambdaType = type(lambda: None)  # Same as FunctionType
 CodeType = None  # TODO: Add better sentinel which can't match anything
 MappingProxyType = None  # TODO: Add better sentinel which can't match anything
 SimpleNamespace = None  # TODO: Add better sentinel which can't match anything
@@ -27,13 +28,14 @@ GeneratorType = type(_g())
 
 
 class _C:
-    def _m(self): pass
+    def _m(self):
+        pass
 
 
 MethodType = type(_C()._m)
 
 BuiltinFunctionType = type(len)
-BuiltinMethodType = type([].append)     # Same as BuiltinFunctionType
+BuiltinMethodType = type([].append)  # Same as BuiltinFunctionType
 
 ModuleType = type(sys)
 
@@ -54,7 +56,12 @@ GetSetDescriptorType = None
 # TODO: Add better sentinel which can't match anything
 MemberDescriptorType = None
 
-del sys, _f, _g, _C,                              # Not for export
+del (
+    sys,
+    _f,
+    _g,
+    _C,
+)  # Not for export
 
 
 # Provide a PEP 3115 compliant mechanism for class creation
@@ -81,8 +88,8 @@ def prepare_class(name, bases=(), kwds=None):
         kwds = {}
     else:
         kwds = dict(kwds)  # Don't alter the provided mapping
-    if 'metaclass' in kwds:
-        meta = kwds.pop('metaclass')
+    if "metaclass" in kwds:
+        meta = kwds.pop("metaclass")
     else:
         if bases:
             meta = type(bases[0])
@@ -92,7 +99,7 @@ def prepare_class(name, bases=(), kwds=None):
         # when meta is a type, we first determine the most-derived metaclass
         # instead of invoking the initial candidate directly
         meta = _calculate_meta(meta, bases)
-    if hasattr(meta, '__prepare__'):
+    if hasattr(meta, "__prepare__"):
         ns = meta.__prepare__(name, bases, **kwds)
     else:
         ns = {}
@@ -110,8 +117,10 @@ def _calculate_meta(meta, bases):
             winner = base_meta
             continue
         # else:
-        raise TypeError("metaclass conflict: "
-                        "the metaclass of a derived class "
-                        "must be a (non-strict) subclass "
-                        "of the metaclasses of all its bases")
+        raise TypeError(
+            "metaclass conflict: "
+            "the metaclass of a derived class "
+            "must be a (non-strict) subclass "
+            "of the metaclasses of all its bases"
+        )
     return winner

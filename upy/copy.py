@@ -49,6 +49,7 @@ __getstate__() and __setstate__().  See the documentation for module
 """
 
 import types
+
 # import weakref
 # from copyreg import dispatch_table
 # import builtins
@@ -58,7 +59,7 @@ class Error(Exception):
     pass
 
 
-error = Error   # backward compatibility
+error = Error  # backward compatibility
 
 try:
     from org.python.core import PyStringMap
@@ -111,10 +112,19 @@ def _copy_immutable(x):
     return x
 
 
-for t in (type(None), int, float, bool, str, tuple,
-          type, range,
-          types.BuiltinFunctionType, type(Ellipsis),
-          types.FunctionType):
+for t in (
+    type(None),
+    int,
+    float,
+    bool,
+    str,
+    tuple,
+    type,
+    range,
+    types.BuiltinFunctionType,
+    type(Ellipsis),
+    types.FunctionType,
+):
     d[t] = _copy_immutable
 t = getattr(types, "CodeType", None)
 if t is not None:
@@ -186,8 +196,7 @@ def deepcopy(x, memo=None, _nil=[]):
                         if reductor:
                             rv = reductor()
                         else:
-                            raise Error(
-                                "un(deep)copyable object of type %s" % cls)
+                            raise Error("un(deep)copyable object of type %s" % cls)
                 y = _reconstruct(x, rv, 1, memo)
 
     # If is its own copy, don't memoize.
@@ -325,7 +334,7 @@ def _reconstruct(x, info, deep, memo=None):
     if state:
         if deep:
             state = deepcopy(state, memo)
-        if hasattr(y, '__setstate__'):
+        if hasattr(y, "__setstate__"):
             y.__setstate__(state)
         else:
             if isinstance(state, tuple) and len(state) == 2:

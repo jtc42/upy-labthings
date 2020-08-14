@@ -9,14 +9,13 @@ log = logging.getLogger(__name__)
 
 
 class RGBLed(Thing):
-
     def __init__(self, rPin, gPin, bPin):
         Thing.__init__(
             self,
-            'urn:dev:ops:esp32-rgb-led-1234',
-            'ESP32-RGB-LED',
-            ['OnOffSwitch', 'Light', 'ColorControl'],
-            'RGB LED on ESP-Wrover-Kit'
+            "urn:dev:ops:esp32-rgb-led-1234",
+            "ESP32-RGB-LED",
+            ["OnOffSwitch", "Light", "ColorControl"],
+            "RGB LED on ESP-Wrover-Kit",
         )
         self.pinRed = machine.Pin(rPin, machine.Pin.OUT)
         self.pinGreen = machine.Pin(gPin, machine.Pin.OUT)
@@ -31,41 +30,55 @@ class RGBLed(Thing):
         self.updateLeds()
 
         self.add_property(
-            Property(self,
-                     'on',
-                     Value(True, self.setOnOff),
-                     metadata={
-                         '@type': 'OnOffProperty',
-                         'title': 'On/Off',
-                         'type': 'boolean',
-                         'description': 'Whether the LED is turned on',
-                     }))
+            Property(
+                self,
+                "on",
+                Value(True, self.setOnOff),
+                metadata={
+                    "@type": "OnOffProperty",
+                    "title": "On/Off",
+                    "type": "boolean",
+                    "description": "Whether the LED is turned on",
+                },
+            )
+        )
         self.add_property(
-            Property(self,
-                     'color',
-                     Value('#808080', self.setRGBColor),
-                     metadata={
-                         '@type': 'ColorProperty',
-                         'title': 'Color',
-                         'type': 'string',
-                         'description': 'The color of the LED',
-                     }))
+            Property(
+                self,
+                "color",
+                Value("#808080", self.setRGBColor),
+                metadata={
+                    "@type": "ColorProperty",
+                    "title": "Color",
+                    "type": "string",
+                    "description": "The color of the LED",
+                },
+            )
+        )
 
     def setOnOff(self, onOff):
-        print('setOnOff: onOff =', onOff)
+        print("setOnOff: onOff =", onOff)
         self.on = onOff
         self.updateLeds()
 
     def setRGBColor(self, color):
-        print('setRGBColor: color =', color)
+        print("setRGBColor: color =", color)
         self.redLevel = int(color[1:3], 16) / 256 * 100
         self.greenLevel = int(color[3:5], 16) / 256 * 100
         self.blueLevel = int(color[5:7], 16) / 256 * 100
         self.updateLeds()
 
     def updateLeds(self):
-        print('updateLeds: on =', self.on, 'r', self.redLevel,
-              'g', self.greenLevel, 'b', self.blueLevel)
+        print(
+            "updateLeds: on =",
+            self.on,
+            "r",
+            self.redLevel,
+            "g",
+            self.greenLevel,
+            "b",
+            self.blueLevel,
+        )
         if self.on:
             self.pwmRed.duty(self.redLevel)
             self.pwmGreen.duty(self.greenLevel)
@@ -77,7 +90,7 @@ class RGBLed(Thing):
 
 
 def run_server():
-    log.info('run_server')
+    log.info("run_server")
 
     rgb = RGBLed(0, 2, 4)
 
@@ -86,9 +99,9 @@ def run_server():
     # In the single thing case, the thing's name will be broadcast.
     server = WebThingServer(SingleThing(rgb), port=80)
     try:
-        log.info('starting the server')
+        log.info("starting the server")
         server.start()
     except KeyboardInterrupt:
-        log.info('stopping the server')
+        log.info("stopping the server")
         server.stop()
-        log.info('done')
+        log.info("done")

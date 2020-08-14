@@ -1,11 +1,10 @@
-'''A super simple EventEmitter implementation.
+"""A super simple EventEmitter implementation.
 
    Modified slightly from: https://github.com/axetroy/pyee
-'''
+"""
 
 
 class EventEmitter:
-
     def __init__(self):
         self._events = {}
 

@@ -26,15 +26,15 @@ srv_run_in_thread = True
 ws_run_in_thread = False
 
 _CORS_HEADERS = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers':
-        'Origin, X-Requested-With, Content-Type, Accept',
-    'Access-Control-Allow-Methods': 'GET, HEAD, PUT, POST, DELETE',
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Origin, X-Requested-With, Content-Type, Accept",
+    "Access-Control-Allow-Methods": "GET, HEAD, PUT, POST, DELETE",
 }
 
 
 def print_exc(func):
     """Wrap a function and print an exception, if encountered."""
+
     def wrapper(*args, **kwargs):
         try:
             # log.debug('Calling {}'.format(func.__name__))
@@ -43,13 +43,21 @@ def print_exc(func):
             return ret
         except Exception as err:
             sys.print_exception(err)
+
     return wrapper
+
 
 class WebThingServer:
     """Server to represent a Web Thing over HTTP."""
 
-    def __init__(self, thing:Thing, port:int=80, hostname:str=None, ssl_options=None,
-                 additional_routes=None):
+    def __init__(
+        self,
+        thing: Thing,
+        port: int = 80,
+        hostname: str = None,
+        ssl_options=None,
+        additional_routes=None,
+    ):
         """
         Initialize the WebThingServer.
 
@@ -62,7 +70,7 @@ class WebThingServer:
         ssl_options -- dict of SSL options to pass to the tornado server
         additional_routes -- list of additional routes to add to the server
         """
-        self.ssl_suffix = '' if ssl_options is None else 's'
+        self.ssl_suffix = "" if ssl_options is None else "s"
 
         self.thing = thing
         self.name = thing.title
@@ -70,65 +78,44 @@ class WebThingServer:
         self.hostname = hostname
 
         station = network.WLAN()
-        mac = station.config('mac')
-        self.system_hostname = 'esp32-upy-{:02x}{:02x}{:02x}'.format(
-          mac[3], mac[4], mac[5])
+        mac = station.config("mac")
+        self.system_hostname = "esp32-upy-{:02x}{:02x}{:02x}".format(
+            mac[3], mac[4], mac[5]
+        )
 
         self.hosts = [
-            'localhost',
-            'localhost:{}'.format(self.port),
-            '{}.local'.format(self.system_hostname),
-            '{}.local:{}'.format(self.system_hostname, self.port),
+            "localhost",
+            "localhost:{}".format(self.port),
+            "{}.local".format(self.system_hostname),
+            "{}.local:{}".format(self.system_hostname, self.port),
         ]
 
         for address in get_addresses():
-            self.hosts.extend([
-                address,
-                '{}:{}'.format(address, self.port),
-            ])
+            self.hosts.extend(
+                [address, "{}:{}".format(address, self.port),]
+            )
 
         if self.hostname is not None:
             self.hostname = self.hostname.lower()
-            self.hosts.extend([
-                self.hostname,
-                '{}:{}'.format(self.hostname, self.port),
-            ])
+            self.hosts.extend(
+                [self.hostname, "{}:{}".format(self.hostname, self.port),]
+            )
 
-        log.info('Registering a single thing')
+        log.info("Registering a single thing")
         handlers = [
-            (
-                '/.*',
-                'OPTIONS',
-                self.optionsHandler
-            ),
-            (
-                '/',
-                'GET',
-                self.thingGetHandler
-            ),
-            (
-                '/properties',
-                'GET',
-                self.propertiesGetHandler
-            ),
-            (
-                '/properties/<property_name>',
-                'GET',
-                self.propertyGetHandler
-            ),
-            (
-                '/properties/<property_name>',
-                'PUT',
-                self.propertyPutHandler
-            ),
+            ("/.*", "OPTIONS", self.optionsHandler),
+            ("/", "GET", self.thingGetHandler),
+            ("/properties", "GET", self.propertiesGetHandler),
+            ("/properties/<property_name>", "GET", self.propertyGetHandler),
+            ("/properties/<property_name>", "PUT", self.propertyPutHandler),
         ]
 
         if isinstance(additional_routes, list):
             handlers = additional_routes + handlers
 
-        self.server = MicroWebSrv(webPath='/flash/www',
-                                  routeHandlers=handlers,
-                                  port=port)
+        self.server = MicroWebSrv(
+            webPath="/flash/www", routeHandlers=handlers, port=port
+        )
         self.server.MaxWebSocketRecvLen = 256
         self.WebSocketThreaded = ws_run_in_thread
         self.server.WebSocketStackSize = 8 * 1024
@@ -139,16 +126,18 @@ class WebThingServer:
         # If WebSocketS used and NOT running in thread, and WebServer IS
         # running in thread make shure WebServer has enough stack size to
         # handle also the WebSocket requests.
-        log.info('Starting Web Server on port {}'.format(self.port))
-        self.server.Start(threaded=srv_run_in_thread, stackSize=12*1024)
+        log.info("Starting Web Server on port {}".format(self.port))
+        self.server.Start(threaded=srv_run_in_thread, stackSize=12 * 1024)
 
         mdns = network.mDNS()
-        mdns.start(self.system_hostname, 'MicroPython with mDNS')
-        mdns.addService('_labthing', '_tcp', 80, self.system_hostname,
-                        {
-                          'board': 'ESP32',
-                          'path': '/',
-                        })
+        mdns.start(self.system_hostname, "MicroPython with mDNS")
+        mdns.addService(
+            "_labthing",
+            "_tcp",
+            80,
+            self.system_hostname,
+            {"board": "ESP32", "path": "/",},
+        )
 
     def stop(self):
         """Stop listening."""
@@ -158,7 +147,7 @@ class WebThingServer:
         """Get the property name based on the route."""
         thing = self.thing
         if thing:
-            property_name = routeArgs['property_name']
+            property_name = routeArgs["property_name"]
             if thing.has_property(property_name):
                 return thing, thing.find_property(property_name)
         return None, None
@@ -169,7 +158,7 @@ class WebThingServer:
 
     def validateHost(self, headers):
         """Validate the Host header in the request."""
-        host = self.getHeader(headers, 'host')
+        host = self.getHeader(headers, "host")
         if host is not None and host.lower() in self.hosts:
             return True
 
@@ -197,31 +186,25 @@ class WebThingServer:
             return
 
         headers = httpClient.GetRequestHeaders()
-        base_href = 'http{}://{}'.format(
-            self.ssl_suffix,
-            self.getHeader(headers, 'host', '')
+        base_href = "http{}://{}".format(
+            self.ssl_suffix, self.getHeader(headers, "host", "")
         )
-        ws_href = 'ws{}://{}'.format(
-            self.ssl_suffix,
-            self.getHeader(headers, 'host', '')
+        ws_href = "ws{}://{}".format(
+            self.ssl_suffix, self.getHeader(headers, "host", "")
         )
 
         description = thing.as_thing_description()
-        description['links'].append({
-            'rel': 'alternate',
-            'href': '{}{}'.format(ws_href, thing.get_href()),
-        })
-        description['base'] = '{}{}'.format(base_href, thing.get_href())
-        description['securityDefinitions'] = {
-            'nosec_sc': {
-                'scheme': 'nosec',
-            },
+        description["links"].append(
+            {"rel": "alternate", "href": "{}{}".format(ws_href, thing.get_href()),}
+        )
+        description["base"] = "{}{}".format(base_href, thing.get_href())
+        description["securityDefinitions"] = {
+            "nosec_sc": {"scheme": "nosec",},
         }
-        description['security'] = 'nosec_sc'
+        description["security"] = "nosec_sc"
 
         httpResponse.WriteResponseJSONOk(
-            obj=description,
-            headers=_CORS_HEADERS,
+            obj=description, headers=_CORS_HEADERS,
         )
 
     @print_exc
@@ -245,8 +228,7 @@ class WebThingServer:
             httpResponse.WriteResponseNotFound()
             return
         httpResponse.WriteResponseJSONOk(
-            obj={prop.get_name(): prop.get_value()},
-            headers=_CORS_HEADERS,
+            obj={prop.get_name(): prop.get_value()}, headers=_CORS_HEADERS,
         )
 
     @print_exc
@@ -270,8 +252,7 @@ class WebThingServer:
             httpResponse.WriteResponseBadRequest()
             return
         httpResponse.WriteResponseJSONOk(
-            obj={prop.get_name(): prop.get_value()},
-            headers=_CORS_HEADERS,
+            obj={prop.get_name(): prop.get_value()}, headers=_CORS_HEADERS,
         )
 
     # === MicroWebSocket callbacks ===
@@ -280,7 +261,7 @@ class WebThingServer:
     def _acceptWebSocketCallback(self, webSocket, httpClient):
         reqPath = httpClient.GetRequestPath()
         if WS_messages:
-            print('WS ACCEPT reqPath =', reqPath)
+            print("WS ACCEPT reqPath =", reqPath)
             if ws_run_in_thread or srv_run_in_thread:
                 # Print thread list so that we can monitor maximum stack size
                 # of WebServer thread and WebSocket thread if any is used
@@ -294,16 +275,16 @@ class WebThingServer:
     @print_exc
     def _recvTextCallback(self, webSocket, msg):
         if WS_messages:
-            print('WS RECV TEXT : %s' % msg)
+            print("WS RECV TEXT : %s" % msg)
 
     @print_exc
     def _recvBinaryCallback(self, webSocket, data):
         if WS_messages:
-            print('WS RECV DATA : %s' % data)
+            print("WS RECV DATA : %s" % data)
 
     @print_exc
     def _closedCallback(self, webSocket):
         if WS_messages:
             if ws_run_in_thread or srv_run_in_thread:
                 _thread.list()
-            print('WS CLOSED')
+            print("WS CLOSED")

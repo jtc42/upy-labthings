@@ -11,7 +11,7 @@ def timestamp():
     Returns the current time in the form YYYY-mm-ddTHH:MM:SS+00:00
     """
     now = time.localtime()
-    return '{:04d}-{:02d}-{:02d}T{:02d}:{:02d}:{:02d}+00:00'.format(*now[:6])
+    return "{:04d}-{:02d}-{:02d}T{:02d}:{:02d}:{:02d}+00:00".format(*now[:6])
 
 
 def get_addresses():
@@ -20,7 +20,7 @@ def get_addresses():
 
     Returns list of addresses.
     """
-    addresses = ['127.0.0.1']
+    addresses = ["127.0.0.1"]
 
     station = network.WLAN(network.STA_IF)
     if station.isconnected():
