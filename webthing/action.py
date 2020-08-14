@@ -94,6 +94,7 @@ class ActionObject:
 
     def start(self):
         """Start performing the action."""
+        # TODO: Threading?
         self.status = "pending"
         self.thing.action_notify(self)
         self.target_function(self.input)
