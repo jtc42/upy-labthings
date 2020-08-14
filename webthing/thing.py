@@ -24,7 +24,6 @@ class Thing:
         self.title = title
         self.description = description
         self.properties = {}
-        self.available_actions = {}
         self.available_events = {}
         self.actions = {}
         self.events = []
@@ -56,7 +55,7 @@ class Thing:
             ],
         }
 
-        for name, action in self.available_actions.items():
+        for name, action in self.actions.items():
             thing["actions"][name] = action["metadata"]
             thing["actions"][name]["links"] = [
                 {
@@ -107,8 +106,8 @@ class Thing:
             property_.set_href_prefix(prefix)
 
         for action_name in self.actions.keys():
-            for action in self.actions[action_name]:
-                action.set_href_prefix(prefix)
+            for action_obj in self.actions[action_name].queue:
+                action_obj.set_href_prefix(prefix)
 
     def set_ui_href(self, href):
         """
@@ -168,7 +167,7 @@ class Thing:
 
     def get_action_descriptions(self, action_name=None):
         """
-        Get the thing's actions as an array.
+        Get the thing's action objects as an array.
 
         action_name -- Optional action name to get descriptions for
 
@@ -177,12 +176,12 @@ class Thing:
         descriptions = []
 
         if action_name is None:
-            for name in self.actions:
-                for action in self.actions[name]:
-                    descriptions.append(action.as_action_description())
+            for action in self.actions:
+                for action_obj in action.queue:
+                    descriptions.append(action_obj.as_action_description())
         elif action_name in self.actions:
-            for action in self.actions[action_name]:
-                descriptions.append(action.as_action_description())
+            for action_obj in self.actions[action_name].queue:
+                descriptions.append(action_obj.as_action_description())
 
         return descriptions
 
@@ -289,9 +288,9 @@ class Thing:
         if action_name not in self.actions:
             return None
 
-        for action in self.actions[action_name]:
-            if action.id == action_id:
-                return action
+        for action_obj in self.actions[action_name].queue:
+            if action_obj.id == action_id:
+                return action_obj
 
         return None
 
@@ -331,7 +330,7 @@ class Thing:
         if action_name not in self.available_actions:
             return None
 
-        action_type = self.available_actions[action_name]
+        action = self.actions[action_name]
 
         # if 'input' in action_type['metadata']:
         #     try:
@@ -339,11 +338,11 @@ class Thing:
         #     except ValidationError:
         #         return None
 
-        action = action_type["class"](self, input_=input_)
-        action.set_href_prefix(self.href_prefix)
-        self.action_notify(action)
-        self.actions[action_name].append(action)
-        return action
+        action_obj = action.invokeaction(input_)
+        action_obj.set_href_prefix(self.href_prefix)
+        self.action_notify(action_obj)
+        action_obj.start()
+        return action_obj
 
     def remove_action(self, action_name, action_id):
         """
@@ -354,29 +353,21 @@ class Thing:
 
         Returns a boolean indicating the presence of the action.
         """
-        action = self.get_action(action_name, action_id)
-        if action is None:
+        action_obj = self.get_action(action_name, action_id)
+        if action_obj is None:
             return False
 
-        action.cancel()
-        self.actions[action_name].remove(action)
+        action_obj.cancel()
         return True
 
-    def add_available_action(self, name, metadata, cls):
+    def add_action(self, action):
         """
         Add an available action.
 
-        name -- name of the action
-        metadata -- action metadata, i.e. type, description, etc., as a dict
-        cls -- class to instantiate for this action
+        action -- Action instance
         """
-        if metadata is None:
-            metadata = {}
 
-        self.available_actions[name] = {
-            "metadata": metadata,
-            "class": cls,
-        }
+        self.available_actions[action.name] = action
         self.actions[name] = []
 
     def add_subscriber(self, ws):
@@ -440,14 +431,14 @@ class Thing:
         for subscriber in self.subscribers:
             subscriber.SendText(message)
 
-    def action_notify(self, action):
+    def action_notify(self, action_obj):
         """
-        Notify all subscribers of an action status change.
+        Notify all subscribers of an action_obj status change.
 
-        action -- the action whose status changed
+        action_obj -- the action_obj whose status changed
         """
         message = json.dumps(
-            {"messageType": "actionStatus", "data": action.as_action_description(),}
+            {"messageType": "actionStatus", "data": action_obj.as_action_description(),}
         )
 
         for subscriber in self.subscribers:

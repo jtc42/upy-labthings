@@ -1,4 +1,5 @@
 from property import Property
+from action import Action
 from thing import Thing
 from value import Value
 from server import MultipleThings, WebThingServer
@@ -71,6 +72,34 @@ class Led(Thing):
                 },
             )
         )
+        self.add_action(
+            Action(
+                self,
+                "fade",
+                invokeaction=fadeBrightness,
+                metadata={
+                    "title": "Fade",
+                    "description": "Fade the lamp to a given level",
+                    "input": {
+                        "type": "object",
+                        "required": ["brightness", "duration",],
+                        "properties": {
+                            "brightness": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 100,
+                                "unit": "percent",
+                            },
+                            "duration": {
+                                "type": "integer",
+                                "minimum": 1,
+                                "unit": "milliseconds",
+                            },
+                        },
+                    },
+                },
+            )
+        )
 
     def setOnOff(self, onOff):
         log.info("setOnOff: onOff = " + str(onOff))
@@ -87,6 +116,10 @@ class Led(Thing):
 
     def getBrightness(self):
         return self.ledBrightness
+
+    def fadeBrightness(self, args):
+        time.sleep(args["duration"] / 1000)
+        setBrightness(args["brightness"])
 
     def updateLed(self):
         log.debug(

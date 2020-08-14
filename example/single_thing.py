@@ -1,4 +1,4 @@
-from action import Action
+from action import ActionObject
 from event import Event
 from property import Property
 from thing import Thing
@@ -16,13 +16,13 @@ class OverheatedEvent(Event):
         Event.__init__(self, thing, "overheated", data=data)
 
 
-class FadeAction(Action):
+class FadeActionObject(ActionObject):
     def __init__(self, thing, input_):
-        Action.__init__(self, uuid.uuid4().hex, thing, "fade", input_=input_)
+        ActionObject.__init__(self, uuid.uuid4().hex, thing, "fade", input_=input_)
 
-    def invokeaction(self):
-        time.sleep(self.input["duration"] / 1000)
-        self.thing.set_property("brightness", self.input["brightness"])
+    def invokeaction(self, args):
+        time.sleep(args["duration"] / 1000)
+        self.thing.set_property("brightness", args["brightness"])
         self.thing.add_event(OverheatedEvent(self.thing, 102))
 
 
@@ -89,7 +89,7 @@ def make_thing():
                 },
             },
         },
-        FadeAction,
+        FadeActionObject,
     )
 
     thing.add_available_event(
