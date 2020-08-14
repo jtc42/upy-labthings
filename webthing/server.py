@@ -1,6 +1,6 @@
 """Python Web Thing server implementation."""
 
-from microWebSrv import MicroWebSrv
+from MicroWebSrv2 import MicroWebSrv2
 import _thread
 import logging
 import sys
@@ -53,16 +53,12 @@ class WebThingServer:
     def __init__(
         self,
         thing: Thing,
-        port: int = 80,
         hostname: str = None,
         ssl_options=None,
         additional_routes=None,
     ):
         """
         Initialize the WebThingServer.
-
-        For documentation on the additional route format, see:
-        https://github.com/loboris/MicroPython_ESP32_psRAM_LoBo/wiki/microWebSrv
 
         things -- list of Things managed by this server
         port -- port to listen on (defaults to 80)
@@ -113,13 +109,13 @@ class WebThingServer:
         if isinstance(additional_routes, list):
             handlers = additional_routes + handlers
 
-        self.server = MicroWebSrv(
-            webPath="/flash/www", routeHandlers=handlers, port=port
-        )
-        self.server.MaxWebSocketRecvLen = 256
-        self.WebSocketThreaded = ws_run_in_thread
-        self.server.WebSocketStackSize = 8 * 1024
-        self.server.AcceptWebSocketCallback = self._acceptWebSocketCallback
+        self.server = MicroWebSrv2()
+
+        for handler in handlers:
+            RegisterRoute(handler[2], handler[1], handler[0])
+
+        wsMod = self.server.LoadModule("WebSockets")
+        wsMod.OnWebSocketAccepted = self._OnWebSocketAcceptedCallback
 
     def start(self):
         """Start listening for incoming connections."""
@@ -127,7 +123,7 @@ class WebThingServer:
         # running in thread make shure WebServer has enough stack size to
         # handle also the WebSocket requests.
         log.info("Starting Web Server on port {}".format(self.port))
-        self.server.Start(threaded=srv_run_in_thread, stackSize=12 * 1024)
+        self.server.StartManaged(procStackSize=12 * 1024)
 
         mdns = network.mDNS()
         mdns.start(self.system_hostname, "MicroPython with mDNS")
@@ -258,32 +254,30 @@ class WebThingServer:
     # === MicroWebSocket callbacks ===
 
     @print_exc
-    def _acceptWebSocketCallback(self, webSocket, httpClient):
-        reqPath = httpClient.GetRequestPath()
+    def _OnWebSocketAcceptedCallback(self, microWebSrv2, webSocket):
         if WS_messages:
-            print("WS ACCEPT reqPath =", reqPath)
             if ws_run_in_thread or srv_run_in_thread:
                 # Print thread list so that we can monitor maximum stack size
                 # of WebServer thread and WebSocket thread if any is used
                 _thread.list()
-        webSocket.RecvTextCallback = self._recvTextCallback
-        webSocket.RecvBinaryCallback = self._recvBinaryCallback
-        webSocket.ClosedCallback = self._closedCallback
+        webSocket.OnTextMessage = self._OnTextMessageCallback
+        webSocket.OnBinaryMessage = self._OnBinaryMessageCallback
+        webSocket.OnClosed = self._OnClosedCallback
         webSocket.thing = self.thing
         self.thing.add_subscriber(webSocket)
 
     @print_exc
-    def _recvTextCallback(self, webSocket, msg):
+    def _OnTextMessageCallback(self, webSocket, msg):
         if WS_messages:
             print("WS RECV TEXT : %s" % msg)
 
     @print_exc
-    def _recvBinaryCallback(self, webSocket, data):
+    def _OnBinaryMessageCallback(self, webSocket, data):
         if WS_messages:
             print("WS RECV DATA : %s" % data)
 
     @print_exc
-    def _closedCallback(self, webSocket):
+    def _OnClosedCallback(self, webSocket):
         if WS_messages:
             if ws_run_in_thread or srv_run_in_thread:
                 _thread.list()
