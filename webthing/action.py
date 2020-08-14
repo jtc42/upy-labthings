@@ -91,10 +91,10 @@ class Action:
         """Start performing the action."""
         self.status = "pending"
         self.thing.action_notify(self)
-        self.perform_action()
+        self.invokeaction()
         self.finish()
 
-    def perform_action(self):
+    def invokeaction(self):
         """Override this with the code necessary to perform the action."""
         pass
 

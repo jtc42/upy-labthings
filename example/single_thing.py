@@ -20,7 +20,7 @@ class FadeAction(Action):
     def __init__(self, thing, input_):
         Action.__init__(self, uuid.uuid4().hex, thing, "fade", input_=input_)
 
-    def perform_action(self):
+    def invokeaction(self):
         time.sleep(self.input["duration"] / 1000)
         self.thing.set_property("brightness", self.input["brightness"])
         self.thing.add_event(OverheatedEvent(self.thing, 102))
@@ -38,7 +38,8 @@ def make_thing():
         Property(
             thing,
             "on",
-            Value(True),
+            writeproperty=lambda v: print(v),
+            initial_value=True,
             metadata={
                 "@type": "OnOffProperty",
                 "title": "On/Off",
@@ -51,7 +52,8 @@ def make_thing():
         Property(
             thing,
             "brightness",
-            Value(50),
+            writeproperty=lambda v: print(v),
+            initial_value=50,
             metadata={
                 "@type": "BrightnessProperty",
                 "title": "Brightness",
