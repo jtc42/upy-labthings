@@ -1,10 +1,13 @@
 """Python Web Thing server implementation."""
 
-from MicroWebSrv2 import MicroWebSrv2
+from MicroWebSrv2 import MicroWebSrv2, RegisterRoute
 import _thread
 import logging
 import sys
 import network
+from time import sleep
+
+import gc
 
 from errors import PropertyError
 from utils import get_addresses
@@ -53,6 +56,7 @@ class WebThingServer:
     def __init__(
         self,
         thing: Thing,
+        port: int = 80,
         hostname: str = None,
         ssl_options=None,
         additional_routes=None,
@@ -110,8 +114,11 @@ class WebThingServer:
             handlers = additional_routes + handlers
 
         self.server = MicroWebSrv2()
+        self.server.SetEmbeddedConfig()
+        self.server.BindAddress = ("0.0.0.0", self.port)
 
         for handler in handlers:
+            print((handler[2], handler[1], handler[0]))
             RegisterRoute(handler[2], handler[1], handler[0])
 
         wsMod = self.server.LoadModule("WebSockets")
@@ -125,15 +132,22 @@ class WebThingServer:
         log.info("Starting Web Server on port {}".format(self.port))
         self.server.StartManaged(procStackSize=12 * 1024)
 
-        mdns = network.mDNS()
-        mdns.start(self.system_hostname, "MicroPython with mDNS")
-        mdns.addService(
-            "_labthing",
-            "_tcp",
-            80,
-            self.system_hostname,
-            {"board": "ESP32", "path": "/",},
-        )
+        if hasattr(network, "mDNS"):
+            mdns = network.mDNS()
+            mdns.start(self.system_hostname, "MicroPython with mDNS")
+            mdns.addService(
+                "_labthing",
+                "_tcp",
+                80,
+                self.system_hostname,
+                {"board": "ESP32", "path": "/",},
+            )
+
+        try:
+            while self.server.IsRunning:
+                sleep(1)
+        except KeyboardInterrupt:
+            pass
 
     def stop(self):
         """Stop listening."""
@@ -154,40 +168,28 @@ class WebThingServer:
 
     def validateHost(self, headers):
         """Validate the Host header in the request."""
-        host = self.getHeader(headers, "host")
+        host = httpRequest.GetHeader(headers, "host")
         if host is not None and host.lower() in self.hosts:
             return True
 
         return False
 
     @print_exc
-    def optionsHandler(self, httpClient, httpResponse, routeArgs=None):
+    def optionsHandler(self, microWebSrv2, request):
         """Handle an OPTIONS request to any path."""
-        if not self.validateHost(httpClient.GetRequestHeaders()):
-            httpResponse.WriteResponseError(403)
-            return
-
-        httpResponse.WriteResponse(204, _CORS_HEADERS, None, None, None)
+        request.Response.Return(204)
 
     @print_exc
-    def thingGetHandler(self, httpClient, httpResponse, routeArgs=None):
+    def thingGetHandler(self, microWebSrv2, request):
         """Handle a GET request for an individual thing."""
-        if not self.validateHost(httpClient.GetRequestHeaders()):
-            httpResponse.WriteResponseError(403)
-            return
 
         thing = self.thing
         if thing is None:
-            httpResponse.WriteResponseNotFound()
+            request.Response.ReturnNotFound()
             return
 
-        headers = httpClient.GetRequestHeaders()
-        base_href = "http{}://{}".format(
-            self.ssl_suffix, self.getHeader(headers, "host", "")
-        )
-        ws_href = "ws{}://{}".format(
-            self.ssl_suffix, self.getHeader(headers, "host", "")
-        )
+        base_href = "http{}://{}".format(self.ssl_suffix, request.GetHeader("host"))
+        ws_href = "ws{}://{}".format(self.ssl_suffix, request.GetHeader("host"))
 
         description = thing.as_thing_description()
         description["links"].append(
@@ -198,58 +200,48 @@ class WebThingServer:
             "nosec_sc": {"scheme": "nosec",},
         }
         description["security"] = "nosec_sc"
-
-        httpResponse.WriteResponseJSONOk(
-            obj=description, headers=_CORS_HEADERS,
-        )
+        request.Response.ReturnOkJSON(description)
 
     @print_exc
-    def propertiesGetHandler(self, httpClient, httpResponse, routeArgs=None):
+    def propertiesGetHandler(self, microWebSrv2, request):
         """Handle a GET request for a property."""
         thing = self.thing
         if thing is None:
-            httpResponse.WriteResponseNotFound()
+            request.Response.ReturnNotFound()
             return
-        httpResponse.WriteResponseJSONOk(thing.get_properties())
+        request.Response.ReturnOkJSON(thing.get_properties())
 
     @print_exc
-    def propertyGetHandler(self, httpClient, httpResponse, routeArgs=None):
+    def propertyGetHandler(self, microWebSrv2, request, routeArgs):
         """Handle a GET request for a property."""
-        if not self.validateHost(httpClient.GetRequestHeaders()):
-            httpResponse.WriteResponseError(403)
+        thing, prop = self.getProperty(routeArgs)
+        if thing is None:
+            request.Response.ReturnNotFound()
             return
 
-        thing, prop = self.getProperty(routeArgs)
-        if thing is None or prop is None:
-            httpResponse.WriteResponseNotFound()
-            return
-        httpResponse.WriteResponseJSONOk(
-            obj={prop.get_name(): prop.get_value()}, headers=_CORS_HEADERS,
-        )
+        request.Response.ReturnOkJSON(prop.get_value())
 
     @print_exc
-    def propertyPutHandler(self, httpClient, httpResponse, routeArgs=None):
+    def propertyPutHandler(self, microWebSrv2, request, routeArgs):
         """Handle a PUT request for a property."""
-        if not self.validateHost(httpClient.GetRequestHeaders()):
-            httpResponse.WriteResponseError(403)
+        thing, prop = self.getProperty(routeArgs)
+        if thing is None:
+            request.Response.ReturnNotFound()
             return
 
-        thing, prop = self.getProperty(routeArgs)
-        if thing is None or prop is None:
-            httpResponse.WriteResponseNotFound()
-            return
-        args = httpClient.ReadRequestContentAsJSON()
+        args = request.GetPostedJSONObject()
+        content = request.Content
+        print(content)
         if args is None:
-            httpResponse.WriteResponseBadRequest()
+            request.Response.ReturnBadRequest()
             return
         try:
-            prop.set_value(args[prop.get_name()])
+            prop.set_value(args)
         except PropertyError:
-            httpResponse.WriteResponseBadRequest()
+            request.Response.ReturnBadRequest()
             return
-        httpResponse.WriteResponseJSONOk(
-            obj={prop.get_name(): prop.get_value()}, headers=_CORS_HEADERS,
-        )
+
+        request.Response.ReturnOkJSON(prop.get_value())
 
     # === MicroWebSocket callbacks ===
 

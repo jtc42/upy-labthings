@@ -1,5 +1,11 @@
 .vscode/
 
+# Libraries
+MicroWebSrv2/
+
+# Scripts
+upload-all.ps1
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

@@ -59,7 +59,7 @@ class Thing:
         }
 
         for name, action in self.actions.items():
-            thing["actions"][name] = action["metadata"]
+            thing["actions"][name] = action.metadata
             thing["actions"][name]["links"] = [
                 {
                     "rel": "action",

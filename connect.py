@@ -1,4 +1,5 @@
 import machine
+import ntptime
 import network
 import time
 import config
@@ -12,16 +13,9 @@ def start_ftp():
 def start_ntp():
     print("Syncing to NTP...")
     rtc = machine.RTC()
-    rtc.ntp_sync(server="pool.ntp.org")
-
-    if not rtc.synced():
-        print("  waiting for time sync...", end="")
-        time.sleep(0.5)
-        while not rtc.synced():
-            print(".", end="")
-            time.sleep(0.5)
-        print("")
-    print("Time:", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
+    ntptime.settime()
+    print("Time:")
+    print(time.localtime())
 
 
 def connect_to_ap():
@@ -36,3 +30,4 @@ def connect_to_ap():
                 print(".", end="")
             print("")
     print("ifconfig =", station.ifconfig())
+
