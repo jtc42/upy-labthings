@@ -1,6 +1,5 @@
 import sys
 
-sys.path.append("/upy")
 sys.path.append("/webthing")
 sys.path.append("/example")
 
