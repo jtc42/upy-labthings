@@ -2,7 +2,7 @@
 
 from MicroWebSrv2 import MicroWebSrv2, RegisterRoute
 import _thread
-import logging
+import upy.logging
 import sys
 import network
 from time import sleep

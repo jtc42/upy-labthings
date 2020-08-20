@@ -1,7 +1,7 @@
 """High-level ActionObject base class implementation."""
 
 from utils import timestamp
-import uuid
+import upy.uuid
 
 
 class ActionObject:

@@ -1,6 +1,6 @@
 """High-level Property base class implementation."""
 
-from copy import deepcopy
+from upy.copy import deepcopy
 
 from value import Value
 from errors import PropertyError

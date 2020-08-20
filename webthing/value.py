@@ -1,6 +1,6 @@
 """An observable, settable value interface."""
 
-from eventemitter import EventEmitter
+from upy.eventemitter import EventEmitter
 
 
 class Value(EventEmitter):
